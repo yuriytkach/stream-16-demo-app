@@ -1,0 +1,60 @@
+plugins {
+	id 'org.springframework.boot' version '2.7.4'
+	id 'io.spring.dependency-management' version '1.0.14.RELEASE'
+	id 'java'
+}
+
+group = 'com.yuriytkach.demo'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '17'
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+ext {
+	set('testcontainersVersion', "1.17.3")
+}
+
+dependencies {
+	implementation platform('software.amazon.awssdk:bom:2.15.0')
+
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+
+	implementation 'software.amazon.awssdk:s3'
+
+	implementation 'org.apache.poi:poi-ooxml:5.2.2'
+
+	implementation 'one.util:streamex:0.8.1'
+
+	testImplementation 'io.rest-assured:rest-assured'
+	testImplementation 'io.rest-assured:spring-mock-mvc'
+	testImplementation 'org.assertj:assertj-core'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.testcontainers:junit-jupiter'
+
+	testImplementation "com.github.tomakehurst:wiremock-jre8:2.34.0"
+
+	testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.307')
+	testImplementation "com.amazonaws:aws-java-sdk-core"
+	testImplementation "org.testcontainers:localstack"
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.testcontainers:testcontainers-bom:${testcontainersVersion}"
+	}
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}

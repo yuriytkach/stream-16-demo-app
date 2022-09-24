@@ -1,0 +1,45 @@
+app:
+  consumer-connect-timeout: 1000
+  consumer-read-timeout: 2000
+  consumer-base-path: https://www.yuriytkach.com
+  s3-bucket: my-bucket
+  aws-region: us-east-1
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 10MB
+
+server:
+  shutdown: graceful
+
+info:
+  app:
+    name: 'Excel Processing Service'
+    description: This is my cool app
+  author: Myself!
+
+management:
+  endpoint:
+    info.enabled: true
+    metrics.enabled: true
+    health:
+      probes.enabled: true
+      show-details: always
+  health:
+    livenessState.enabled: true
+    readinessState.enabled: true
+  info.env.enabled: true
+  endpoints:
+    web:
+      exposure.include: 'info,health,metrics'
+      basePath: /
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+
+server:
+  shutdown: immediate
