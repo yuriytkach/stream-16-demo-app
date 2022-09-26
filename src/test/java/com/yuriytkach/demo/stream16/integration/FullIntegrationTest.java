@@ -148,7 +148,7 @@ class FullIntegrationTest {
 
     @Bean
     @Primary
-    public S3Client testS3Client() {
+    public S3Client s3ClientForTest() {
       final Region region = Region.of(LOCAL_STACK_CONTAINER.getRegion());
       final var client = S3Client
         .builder()

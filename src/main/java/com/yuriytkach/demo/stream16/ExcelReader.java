@@ -32,6 +32,7 @@ public class ExcelReader {
         .skip(1) //header row
         .map(this::extractRow)
         .flatMap(Optional::stream)
+        .filter(ExcelRecord::isValid)
         .toImmutableList();
 
       log.debug("Parsed rows {} of {}", excelRecords.size(), totalRows);
@@ -45,8 +46,7 @@ public class ExcelReader {
       return Optional.of(new ExcelRecord(
         row.getCell(0).getStringCellValue(),
         row.getCell(1).getStringCellValue()
-      ))
-        .filter(ExcelRecord::isValid);
+      ));
     } catch (final Exception ex) {
       log.debug("Invalid row {}: {}", row.getRowNum(), ex.getMessage());
       return Optional.empty();
