@@ -1,7 +1,13 @@
-# Demo Project for Online Stream #16 - Microservice for Excel File Processing
+# Demo Project for Online Stream #16,#17,#20 - Microservice for Excel File Processing
 
 Demo project for online stream #16 where a small microservice is created that processes Excel file
 uploaded through REST API, saves file to AWS S3, parses it to JSON and send that to another service.
+
+On stream #17 the dockerization of the project is done together with additional properties and settings
+to prepare for running in production.
+
+On stream #20 additional features are added: Sending of file to SFTP folder and then sending email.
+The integration with all external services is tested with running services in containers.
 
 ![Diagram for Application](https://github.com/yuriytkach/stream-16-demo-app/blob/main/arch.png?raw=true)
 
@@ -19,7 +25,21 @@ Thank you in advance for your support! Слава Україні! :ukraine:
 - Spring Boot
 - Apache POI
 - AWS Java SDK
+- SSHJ for SFTP
+- JavaMail
 - TestContainers for testing
+- GreenMail for testing mail server
+
+### SFTP notes
+To connect to SFTP server the SSH private key is used. The generated key is located in `src/test/resources`.
+
+To generate new key you can use `ssh-keygen` tool on your system.
+Note, that key would be generated in OPENSSH format.
+
+To convert to PEM format use the following command:
+```shell
+ssh-keygen -p -m pem -f /path/to/file
+```
 
 ## Building and Running the Application
 

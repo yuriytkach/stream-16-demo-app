@@ -34,6 +34,9 @@ dependencies {
 
 	implementation 'net.logstash.logback:logstash-logback-encoder:7.2'
 
+	implementation 'com.hierynomus:sshj:0.34.0'
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
+
 	implementation 'org.apache.poi:poi-ooxml:5.2.2'
 
 	implementation 'one.util:streamex:0.8.1'
@@ -49,6 +52,8 @@ dependencies {
 	testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.307')
 	testImplementation "com.amazonaws:aws-java-sdk-core"
 	testImplementation "org.testcontainers:localstack"
+
+	testImplementation('com.icegreen:greenmail:1.6.11')
 }
 
 dependencyManagement {

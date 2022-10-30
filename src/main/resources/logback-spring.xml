@@ -2,15 +2,11 @@
 
 <configuration scan="true">
 
-  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-    <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+  <appender name="HUMAN" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <Pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%level) [%thread] %cyan(%-40.40logger{39}) --- %message --- %yellow(%mdc) %n%rootException</Pattern>
+    </encoder>
   </appender>
-
-    <appender name="HUMAN" class="ch.qos.logback.core.ConsoleAppender">
-      <encoder>
-        <Pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%level) [%thread] %cyan(%-40.40logger{39}) --- %message --- %yellow(%mdc) %n%rootException</Pattern>
-      </encoder>
-    </appender>
 
   <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
     <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
@@ -21,10 +17,9 @@
     <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
   </appender>
 
-    <logger name="com.yuriytkach.demo" level = "TRACE"/>
+    <logger name="com.yuriytkach.demo" level = "DEBUG"/>
 
     <root level="INFO">
-  <!--    <appender-ref ref="CONSOLE"/>-->
       <appender-ref ref="HUMAN"/>
     </root>
 

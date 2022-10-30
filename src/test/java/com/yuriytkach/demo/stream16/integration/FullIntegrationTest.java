@@ -4,14 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.S3;
 import static org.testcontainers.containers.wait.strategy.Wait.forHttp;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 
+import javax.mail.internet.MimeMessage;
+
 import org.hamcrest.Matchers;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,15 +33,26 @@ import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
+import org.testcontainers.utility.MountableFile;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.matching.EqualToJsonPattern;
+import com.icegreen.greenmail.util.GreenMail;
+import com.icegreen.greenmail.util.GreenMailUtil;
+import com.icegreen.greenmail.util.ServerSetup;
 import com.yuriytkach.demo.stream16.Controller;
+import com.yuriytkach.demo.stream16.email.MailProperties;
 import com.yuriytkach.demo.stream16.model.ExcelRecord;
+import com.yuriytkach.demo.stream16.sftp.SftpConfiguration;
+import com.yuriytkach.demo.stream16.sftp.SftpProperties;
 
 import io.restassured.RestAssured;
+import net.schmizz.sshj.SSHClient;
+import net.schmizz.sshj.sftp.RemoteResourceInfo;
+import net.schmizz.sshj.sftp.SFTPClient;
+import net.schmizz.sshj.userauth.keyprovider.OpenSSHKeyFile;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.ResponseInputStream;
@@ -68,10 +80,21 @@ class FullIntegrationTest {
   )
     .withServices(S3);
 
+  @Container
+  private static final GenericContainer<?> SFTP_CONTAINER = new GenericContainer<>("rastasheep/ubuntu-sshd:14.04")
+    .withExposedPorts(22);
+  private static final String COOL_EXCEL_XLSX = "cool-excel.xlsx";
+
   @DynamicPropertySource
   static void wiremockProperties(final DynamicPropertyRegistry registry) {
     registry.add("app.consumer-base-path", () ->
       "http://" + WIREMOCK_CONTAINER.getHost() + ":" + WIREMOCK_CONTAINER.getMappedPort(CONSUMER_PORT));
+
+    registry.add("app.sftp.host", SFTP_CONTAINER::getHost);
+    registry.add("app.sftp.port", SFTP_CONTAINER::getFirstMappedPort);
+
+    final URL priKey = FullIntegrationTest.class.getClassLoader().getResource("ssh-private.key");
+    registry.add("app.sftp.private-key-file", () -> priKey.getFile());
   }
 
   @LocalServerPort
@@ -82,6 +105,17 @@ class FullIntegrationTest {
 
   @Autowired
   S3Client s3Client;
+
+  @Autowired
+  SftpProperties sftpProperties;
+
+  @Autowired
+  OpenSSHKeyFile sshKeyFile;
+
+  @Autowired
+  MailProperties mailProperties;
+
+  private GreenMail greenMail;
 
   @BeforeAll
   static void setUpWireMock() {
@@ -94,6 +128,32 @@ class FullIntegrationTest {
     log.info("http://" + WIREMOCK_CONTAINER.getHost() + ":" + mappedPort);
   }
 
+  @BeforeAll
+  static void setUpSftp() throws Exception {
+    SFTP_CONTAINER.copyFileToContainer(
+      MountableFile.forClasspathResource("ssh-private.key.pub"),
+      "/root/.ssh/authorized_keys"
+    );
+    SFTP_CONTAINER.execInContainer("chown", "root:root", "/root/.ssh/authorized_keys");
+    SFTP_CONTAINER.execInContainer("mkdir", "/root/inbox");
+  }
+
+  @BeforeEach
+  void setupGreenMail() {
+    greenMail = new GreenMail(new ServerSetup(
+      mailProperties.getPort(),
+      mailProperties.getHost(),
+      "smtp"
+    ));
+    greenMail.setUser(mailProperties.getUsername(), mailProperties.getPassword());
+    greenMail.start();
+  }
+
+  @AfterEach
+  void stopGreenMail() {
+    greenMail.stop();
+  }
+
   @BeforeEach
   void setupRestAssured() {
     RestAssured.baseURI = "http://localhost";
@@ -101,20 +161,20 @@ class FullIntegrationTest {
   }
 
   @Test
-  void shouldSaveItem() throws URISyntaxException, IOException {
+  void shouldSaveItem() throws Exception {
     WireMock.stubFor(
       WireMock.post(WireMock.urlPathEqualTo("/records")).willReturn(
         ResponseDefinitionBuilder.responseDefinition().withStatus(200).withBody("Yay!")
       )
     );
 
-    final URL resource = getClass().getClassLoader().getResource("cool-excel.xlsx");
+    final URL resource = getClass().getClassLoader().getResource(COOL_EXCEL_XLSX);
     final byte[] bytes = Files.readAllBytes(Paths.get(resource.toURI()));
 
     RestAssured.given()
       .accept(MediaType.APPLICATION_JSON_VALUE)
       .contentType(Controller.EXCEL_MEDIA_TYPE)
-      .multiPart("file", "cool-excel.xlsx", bytes)
+      .multiPart("file", COOL_EXCEL_XLSX, bytes)
       .when()
       .post("/excel")
       .then()
@@ -137,10 +197,34 @@ class FullIntegrationTest {
 
     final ResponseInputStream<GetObjectResponse> response = s3Client.getObject(GetObjectRequest.builder()
       .bucket("my-bucket")
-      .key("cool-excel.xlsx")
+      .key(COOL_EXCEL_XLSX)
       .build());
 
     assertThat(response.readAllBytes()).isEqualTo(bytes);
+
+    // ====== assert SFTP ======
+    try (SSHClient sshClient= new SSHClient()) {
+      sshClient.addHostKeyVerifier(new SftpConfiguration.AllowAllHosts());
+      sshClient.connect(sftpProperties.getHost(), sftpProperties.getPort());
+      sshClient.authPublickey(sftpProperties.getUsername(), sshKeyFile);
+
+      try (SFTPClient sftpClient = sshClient.newSFTPClient()) {
+        final List<RemoteResourceInfo> ls = sftpClient.ls(sftpProperties.getFolder());
+        final List<String> filesOnRemote = ls.stream().map(RemoteResourceInfo::getName).toList();
+        System.out.println(filesOnRemote);
+        assertThat(filesOnRemote).contains(COOL_EXCEL_XLSX);
+      }
+    }
+
+    // ====== verify mail =======
+
+    assertThat(greenMail.waitForIncomingEmail(1)).isTrue();
+    final MimeMessage[] receivedMessages = greenMail.getReceivedMessages();
+
+    final MimeMessage message = receivedMessages[0];
+    assertThat(message.getSubject()).isEqualTo("New file on SFTP!");
+    final String body = GreenMailUtil.getBody(message);
+    assertThat(body).isEqualTo("Filename: " + COOL_EXCEL_XLSX);
   }
 
   @TestConfiguration
