@@ -2,6 +2,9 @@ package com.yuriytkach.demo.stream16;
 
 import java.io.IOException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,6 +23,8 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class Controller {
 
+  Logger logger = LoggerFactory.getLogger(getClass());
+
   public static final String EXCEL_MEDIA_TYPE = "multipart/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
   private final ExcelReader excelReader;
   private final RecordsSender recordsSender;
@@ -33,10 +38,13 @@ public class Controller {
   public ResponseEntity<Object> uploadFile(
     @RequestParam final MultipartFile file
   ) {
-    log.info("Loading file {} of size {}", file.getOriginalFilename(), file.getSize());
+    MDC.put("filename", "file.getOriginalFilename()");
+
+    log.info("Loading file2 {} of size {}", file.getOriginalFilename(), file.getSize());
 
     try {
       final ExcelReadResult result = excelReader.read(file.getInputStream());
+      log.debug("Excel read result ok: {}, failed: {}", result.records().size(), result.failedRows());
       recordsSender.send(result.records());
       awsS3Saver.save(file.getOriginalFilename(), file.getBytes());
       return ResponseEntity.accepted().body(new UploadResponse(result.records().size(), result.failedRows()));
@@ -44,6 +52,8 @@ public class Controller {
       log.error("Failed to read excel file: {}", ex.getMessage(), ex);
       return ResponseEntity.badRequest()
         .body(ex.getMessage());
+    } finally {
+      MDC.remove("filename  ");
     }
   }
 

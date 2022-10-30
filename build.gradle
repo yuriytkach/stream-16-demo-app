@@ -23,7 +23,7 @@ ext {
 }
 
 dependencies {
-	implementation platform('software.amazon.awssdk:bom:2.15.0')
+	implementation platform('software.amazon.awssdk:bom:2.17.276')
 
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -31,6 +31,8 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 
 	implementation 'software.amazon.awssdk:s3'
+
+	implementation 'net.logstash.logback:logstash-logback-encoder:7.2'
 
 	implementation 'org.apache.poi:poi-ooxml:5.2.2'
 

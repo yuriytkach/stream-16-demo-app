@@ -35,6 +35,20 @@ To run application, use gradle:
 
 After that you can access application on [http://localhost:8080](http://localhost:8080)
 
+### Docker
+
+To build docker image, use gradle:
+```shell
+./gradlew bootBuildImage
+```
+
+Then you run the docker container with exposing app port `8899`:
+```shell
+docker run -p 8899:8080 -t stream-16-demo-app:0.0.1-SNAPSHOT
+```
+
+After that you can access application on [http://localhost:8899](http://localhost:8899)
+
 ## Documentation
 ### Reference Documentation
 For further reference, please consider the following sections:
