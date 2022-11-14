@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'com.yuriytkach.demo'
-version = '0.0.1-SNAPSHOT'
+version = '0.0.2-SNAPSHOT'
 sourceCompatibility = '17'
 
 configurations {
@@ -29,6 +29,9 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
+
+	implementation 'io.micrometer:micrometer-core'
+	implementation 'io.micrometer:micrometer-registry-prometheus'
 
 	implementation 'software.amazon.awssdk:s3'
 

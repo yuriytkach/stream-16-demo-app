@@ -13,12 +13,17 @@ import org.springframework.stereotype.Service;
 import com.yuriytkach.demo.stream16.model.ExcelReadResult;
 import com.yuriytkach.demo.stream16.model.ExcelRecord;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import one.util.streamex.StreamEx;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ExcelReader {
+
+  private final MeterRegistry meterRegistry;
 
   public ExcelReadResult read(final InputStream inputStream) throws IOException {
     try (XSSFWorkbook workbook = new XSSFWorkbook(inputStream)) {
@@ -37,6 +42,7 @@ public class ExcelReader {
 
       log.debug("Parsed rows {} of {}", excelRecords.size(), totalRows);
 
+      meterRegistry.counter("excel.row.count").increment(excelRecords.size());
       return new ExcelReadResult(excelRecords, totalRows - excelRecords.size());
     }
   }
